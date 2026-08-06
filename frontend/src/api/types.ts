@@ -32,6 +32,7 @@ export interface AlignedClause {
   ai_summary: string | null
   risk_level: 'high' | 'medium' | 'low' | 'cosmetic' | null
 }
+
 export interface ClausesResponse {
   comparison_id: string
   clauses: AlignedClause[]
