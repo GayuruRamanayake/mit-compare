@@ -46,10 +46,8 @@ export async function getComparisonClauses(comparisonId: string): Promise<Clause
 }
 
 
-export async function getComparisonAnalysis(comparisonId: string): Promise<ClausesResponse> {
-  const res = await fetch(`${API_BASE_URL}/comparisons/${comparisonId}/analysis`)
-  if (!res.ok) {
-    throw new ApiError(`Failed to fetch analysis`, res.status)
-  }
+export async function getComparisonAnalysis(comparisonId: string, signal?: AbortSignal): Promise<ClausesResponse> {
+  const res = await fetch(`${API_BASE_URL}/comparisons/${comparisonId}/analysis`, { signal })
+  if (!res.ok) throw new ApiError(`Failed to fetch analysis`, res.status)
   return res.json()
 }

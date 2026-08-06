@@ -4,18 +4,34 @@ import { getComparisonAnalysis, ApiError } from '../api/comparisons'
 import type { AlignedClause } from '../api/types'
 import ClauseText from '../components/comparison/ClauseText'
 
-const STATUS_ACCENT: Record<AlignedClause['status'], string> = {
-  unchanged: 'border-l-transparent',
-  modified: 'border-l-amber-400 bg-amber-50',
-  added: 'border-l-green-400 bg-green-50',
-  deleted: 'border-l-red-400 bg-red-50',
+// Color belongs to risk_level — the primary triage signal
+const RISK_BORDER: Record<string, string> = {
+  high: 'border-l-red-400 bg-red-50',
+  medium: 'border-l-amber-400 bg-amber-50',
+  low: 'border-l-blue-400 bg-blue-50',
+  cosmetic: 'border-l-gray-300 bg-gray-50',
 }
+const DEFAULT_BORDER = 'border-l-transparent'
 
-const RISK_STYLES: Record<string, string> = {
+const RISK_BADGE: Record<string, string> = {
   high: 'bg-red-100 text-red-700',
   medium: 'bg-amber-100 text-amber-700',
   low: 'bg-blue-100 text-blue-700',
   cosmetic: 'bg-gray-100 text-gray-600',
+}
+
+// status is a neutral badge — same shape as risk, no competing color
+const STATUS_BADGE: Record<AlignedClause['status'], { label: string; style: string } | null> = {
+  unchanged: null,
+  modified: { label: 'modified', style: 'bg-gray-100 text-gray-600' },
+  added: { label: 'added', style: 'bg-gray-100 text-gray-600' },
+  deleted: { label: 'deleted', style: 'bg-gray-100 text-gray-600' },
+}
+
+const BADGE_BASE = 'text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap'
+
+function getCardStyle(c: AlignedClause) {
+  return c.risk_level ? RISK_BORDER[c.risk_level] : DEFAULT_BORDER
 }
 
 function ComparisonPage() {
@@ -27,24 +43,24 @@ function ComparisonPage() {
 
   useEffect(() => {
     if (!comparisonId) return
-    let cancelled = false
+    const controller = new AbortController()
 
     async function load() {
       if (!comparisonId) return
       setIsLoading(true)
       setError(null)
       try {
-        const data = await getComparisonAnalysis(comparisonId)
-        if (!cancelled) setClauses(data.clauses)
+        const data = await getComparisonAnalysis(comparisonId, controller.signal)
+        setClauses(data.clauses)
+        setIsLoading(false)
       } catch (err) {
-        if (cancelled) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
         setError(err instanceof ApiError ? err.message : 'Could not reach the server.')
-      } finally {
-        if (!cancelled) setIsLoading(false)
+        setIsLoading(false)
       }
     }
     load()
-    return () => { cancelled = true }
+    return () => controller.abort()
   }, [comparisonId])
 
   const jumpTo = (clauseId: string) => {
@@ -74,13 +90,15 @@ function ComparisonPage() {
               onClick={() => jumpTo(c.clause_id)}
               className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm"
             >
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
-                  c.status === 'modified' ? 'bg-amber-400' : c.status === 'added' ? 'bg-green-400' : 'bg-red-400'
-                }`} />
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 {c.risk_level && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${RISK_STYLES[c.risk_level]}`}>
+                  <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>
                     {c.risk_level}
+                  </span>
+                )}
+                {STATUS_BADGE[c.status] && (
+                  <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>
+                    {STATUS_BADGE[c.status]!.label}
                   </span>
                 )}
               </div>
@@ -98,13 +116,18 @@ function ComparisonPage() {
             <div
               id={`left-${c.clause_id}`}
               key={c.clause_id}
-              className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${STATUS_ACCENT[c.status]} ${activeId === c.clause_id ? 'ring-2 ring-blue-400' : ''}`}
+              className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-blue-400' : ''}`}
             >
               {c.ai_summary && (
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   {c.risk_level && (
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${RISK_STYLES[c.risk_level]}`}>
+                    <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>
                       {c.risk_level}
+                    </span>
+                  )}
+                  {STATUS_BADGE[c.status] && (
+                    <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>
+                      {STATUS_BADGE[c.status]!.label}
                     </span>
                   )}
                   <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
@@ -121,13 +144,18 @@ function ComparisonPage() {
             <div
               id={`right-${c.clause_id}`}
               key={c.clause_id}
-              className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${STATUS_ACCENT[c.status]} ${activeId === c.clause_id ? 'ring-2 ring-blue-400' : ''}`}
+              className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-blue-400' : ''}`}
             >
               {c.ai_summary && (
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   {c.risk_level && (
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${RISK_STYLES[c.risk_level]}`}>
+                    <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>
                       {c.risk_level}
+                    </span>
+                  )}
+                  {STATUS_BADGE[c.status] && (
+                    <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>
+                      {STATUS_BADGE[c.status]!.label}
                     </span>
                   )}
                   <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
