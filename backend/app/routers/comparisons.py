@@ -138,6 +138,8 @@ from app.services.parser import parse_document
 from app.services.aligner import align_clauses
 from app.services.gemini_analysis import chunk_list, analyze_batch_throttled
 
+from app.storage import save_comparison, get_comparison, save_clauses, get_clauses
+
 router = APIRouter(prefix="/comparisons", tags=["comparisons"])
 
 ALLOWED_TYPES = {".docx", ".pdf"}
@@ -216,50 +218,44 @@ async def get_comparison_clauses(comparison_id: str):
     return {"comparison_id": comparison_id, "clauses": results}
 
 
+
 @router.get("/{comparison_id}/analysis")
 async def get_comparison_analysis(comparison_id: str):
     record = get_comparison(comparison_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Comparison not found")
 
+    cached = get_clauses(comparison_id)
+    if cached is not None:
+        return {"comparison_id": comparison_id, "clauses": cached}
+
     aligned = align_clauses(record["original_paragraphs"], record["revised_paragraphs"])
     changed = [c for c in aligned if c["status"] != "unchanged"]
 
-    if not changed:
-        return {"comparison_id": comparison_id, "clauses": aligned}
+    if changed:
+        batches = list(chunk_list(changed, BATCH_SIZE))
+        batch_inputs = []
+        for batch in batches:
+            batch_input = []
+            for c in batch:
+                if c["status"] == "modified":
+                    batch_input.append({"type": "modified", "original": c["original_text"], "revised": c["revised_text"], "similarity": c["similarity"]})
+                else:
+                    batch_input.append({"type": c["status"], "text": c["original_text"] or c["revised_text"]})
+            batch_inputs.append(batch_input)
 
-    batches = list(chunk_list(changed, BATCH_SIZE))
+        all_results = await asyncio.gather(*(analyze_batch_throttled(b) for b in batch_inputs))
 
-    batch_inputs = []
-    for batch in batches:
-        batch_input = []
-        for c in batch:
-            if c["status"] == "modified":
-                batch_input.append({
-                    "type": "modified",
-                    "original": c["original_text"],
-                    "revised": c["revised_text"],
-                    "similarity": c["similarity"],
-                })
-            else:
-                batch_input.append({
-                    "type": c["status"],
-                    "text": c["original_text"] or c["revised_text"],
-                })
-        batch_inputs.append(batch_input)
-
-    # each batch call is capped by the semaphore inside analyze_batch_throttled,
-    # so this never exceeds the concurrency limit even with many batches
-    all_results = await asyncio.gather(*(analyze_batch_throttled(b) for b in batch_inputs))
-
-    for batch, results in zip(batches, all_results):
-        for clause, result in zip(batch, results):
-            clause["ai_summary"] = result["summary"]
-            clause["risk_level"] = result["risk_level"]
+        for batch, results in zip(batches, all_results):
+            for clause, result in zip(batch, results):
+                clause["ai_summary"] = result["summary"]
+                clause["risk_level"] = result["risk_level"]
 
     for clause in aligned:
         if clause["status"] == "unchanged":
             clause["ai_summary"] = None
             clause["risk_level"] = None
+
+    save_clauses(comparison_id, aligned)  # cache for next time
 
     return {"comparison_id": comparison_id, "clauses": aligned}

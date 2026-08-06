@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import comparisons
+from app.database import init_db
 
 app = FastAPI(title="Contract Comparison API")
 
-# allow the Vite dev server to call this API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -13,6 +13,12 @@ app.add_middleware(
 )
 
 app.include_router(comparisons.router)
+
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
 
 @app.get("/health")
 def health_check():

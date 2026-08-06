@@ -1,23 +1,80 @@
-from typing import TypedDict
+from typing import Optional
+from sqlmodel import Session, select
+from app.database import engine
+from app.models import Comparison, Clause
 
 
-class ComparisonRecord(TypedDict):
-    original_filename: str
-    original_bytes: bytes
-    original_paragraphs: list[str]
-    revised_filename: str
-    revised_bytes: bytes
-    revised_paragraphs: list[str]
-    status: str
-
-# simple in-memory store — resets on server restart, single-process only
-# fine for local dev, will be replaced with a real DB later
-_comparisons: dict[str, ComparisonRecord] = {}
-
-
-def save_comparison(comparison_id: str, record: ComparisonRecord) -> None:
-    _comparisons[comparison_id] = record
+def save_comparison(comparison_id: str, record: dict) -> None:
+    with Session(engine) as session:
+        comparison = Comparison(
+            id=comparison_id,
+            original_filename=record["original_filename"],
+            revised_filename=record["revised_filename"],
+            status=record["status"],
+            original_paragraphs=record["original_paragraphs"],
+            revised_paragraphs=record["revised_paragraphs"],
+        )
+        session.add(comparison)
+        session.commit()
 
 
-def get_comparison(comparison_id: str) -> ComparisonRecord | None:
-    return _comparisons.get(comparison_id)
+def get_comparison(comparison_id: str) -> Optional[dict]:
+    with Session(engine) as session:
+        comparison = session.get(Comparison, comparison_id)
+        if comparison is None:
+            return None
+        return {
+            "original_filename": comparison.original_filename,
+            "revised_filename": comparison.revised_filename,
+            "status": comparison.status,
+            "original_paragraphs": comparison.original_paragraphs,
+            "revised_paragraphs": comparison.revised_paragraphs,
+        }
+
+
+def save_clauses(comparison_id: str, clauses: list[dict]) -> None:
+    """Cache computed clause analysis so it doesn't need to be recomputed."""
+    with Session(engine) as session:
+        # clear any previously cached clauses for this comparison first
+        existing = session.exec(select(Clause).where(Clause.comparison_id == comparison_id)).all()
+        for row in existing:
+            session.delete(row)
+
+        for c in clauses:
+            session.add(Clause(
+                comparison_id=comparison_id,
+                clause_id=c["clause_id"],
+                status=c["status"],
+                original_text=c.get("original_text"),
+                revised_text=c.get("revised_text"),
+                original_index=c.get("original_index"),
+                revised_index=c.get("revised_index"),
+                similarity=c.get("similarity", 0.0),
+                match_method=c.get("match_method"),
+                ai_summary=c.get("ai_summary"),
+                risk_level=c.get("risk_level"),
+            ))
+        session.commit()
+
+
+def get_clauses(comparison_id: str) -> Optional[list[dict]]:
+    """Returns cached clauses if they exist, else None (caller should compute)."""
+    with Session(engine) as session:
+        rows = session.exec(select(Clause).where(Clause.comparison_id == comparison_id)).all()
+        if not rows:
+            return None
+        return [
+            {
+                "clause_id": r.clause_id,
+                "status": r.status,
+                "original_text": r.original_text,
+                "revised_text": r.revised_text,
+                "original_index": r.original_index,
+                "revised_index": r.revised_index,
+                "similarity": r.similarity,
+                "match_method": r.match_method,
+                "ai_summary": r.ai_summary,
+                "risk_level": r.risk_level,
+            }
+            for r in rows
+        ]
