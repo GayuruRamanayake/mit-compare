@@ -4,10 +4,11 @@ from typing import TypedDict
 class ComparisonRecord(TypedDict):
     original_filename: str
     original_bytes: bytes
+    original_paragraphs: list[str]
     revised_filename: str
     revised_bytes: bytes
-    status: str  # "uploaded" | "parsed" | "failed"
-
+    revised_paragraphs: list[str]
+    status: str
 
 # simple in-memory store — resets on server restart, single-process only
 # fine for local dev, will be replaced with a real DB later

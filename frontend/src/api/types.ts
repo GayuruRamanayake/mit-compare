@@ -20,3 +20,19 @@ export interface UploadResponse {
   revised_filename: string
   revised_size: number
 }
+
+export interface AlignedClause {
+  clause_id: string
+  status: 'unchanged' | 'modified' | 'added' | 'deleted'
+  original_text: string | null
+  revised_text: string | null
+  original_index: number | null
+  revised_index: number | null
+  similarity: number
+  ai_summary: string | null
+  risk_level: 'high' | 'medium' | 'low' | 'cosmetic' | null
+}
+export interface ClausesResponse {
+  comparison_id: string
+  clauses: AlignedClause[]
+}
