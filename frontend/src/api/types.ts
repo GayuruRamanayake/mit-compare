@@ -31,6 +31,8 @@ export interface AlignedClause {
   similarity: number
   ai_summary: string | null
   risk_level: 'high' | 'medium' | 'low' | 'cosmetic' | null
+  reviewed: boolean
+  flagged: boolean
 }
 
 export interface ClausesResponse {

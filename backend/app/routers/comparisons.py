@@ -139,6 +139,11 @@ from app.services.aligner import align_clauses
 from app.services.gemini_analysis import chunk_list, analyze_batch_throttled
 
 from app.storage import save_comparison, get_comparison, save_clauses, get_clauses
+from pydantic import BaseModel
+from app.storage import update_clause_review
+from typing import Optional
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/comparisons", tags=["comparisons"])
 
@@ -146,6 +151,9 @@ ALLOWED_TYPES = {".docx", ".pdf"}
 MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
 BATCH_SIZE = 10
 
+class ClauseReviewUpdate(BaseModel):
+    reviewed: Optional[bool] = None
+    flagged: Optional[bool] = None
 
 def _validate_file(file: UploadFile) -> None:
     ext = "." + file.filename.rsplit(".", 1)[-1].lower() if file.filename else ""
@@ -259,3 +267,12 @@ async def get_comparison_analysis(comparison_id: str):
     save_clauses(comparison_id, aligned)  # cache for next time
 
     return {"comparison_id": comparison_id, "clauses": aligned}
+
+
+
+@router.patch("/{comparison_id}/clauses/{clause_id}")
+async def patch_clause_review(comparison_id: str, clause_id: str, update: ClauseReviewUpdate):
+    result = update_clause_review(comparison_id, clause_id, reviewed=update.reviewed, flagged=update.flagged)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Clause not found")
+    return result

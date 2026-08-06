@@ -51,3 +51,19 @@ export async function getComparisonAnalysis(comparisonId: string, signal?: Abort
   if (!res.ok) throw new ApiError(`Failed to fetch analysis`, res.status)
   return res.json()
 }
+
+export async function updateClauseReview(
+  comparisonId: string,
+  clauseId: string,
+  update: { reviewed?: boolean; flagged?: boolean }
+): Promise<{ clause_id: string; reviewed: boolean; flagged: boolean }> {
+  const res = await fetch(`${API_BASE_URL}/comparisons/${comparisonId}/clauses/${clauseId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(update),
+  })
+  if (!res.ok) {
+    throw new ApiError(`Failed to update clause`, res.status)
+  }
+  return res.json()
+}

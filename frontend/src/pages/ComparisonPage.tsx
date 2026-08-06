@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getComparisonAnalysis, ApiError } from '../api/comparisons'
+import { getComparisonAnalysis, updateClauseReview, ApiError } from '../api/comparisons'
 import type { AlignedClause } from '../api/types'
 import ClauseText from '../components/comparison/ClauseText'
 
@@ -70,6 +70,26 @@ function ComparisonPage() {
     setTimeout(() => setActiveId(null), 1500)
   }
 
+  const toggleReviewed = async (clauseId: string, current: boolean) => {
+    if (!comparisonId) return
+    setClauses((prev) => prev && prev.map((c) => c.clause_id === clauseId ? { ...c, reviewed: !current } : c))
+    try {
+      await updateClauseReview(comparisonId, clauseId, { reviewed: !current })
+    } catch {
+      setClauses((prev) => prev && prev.map((c) => c.clause_id === clauseId ? { ...c, reviewed: current } : c))
+    }
+  }
+
+  const toggleFlagged = async (clauseId: string, current: boolean) => {
+    if (!comparisonId) return
+    setClauses((prev) => prev && prev.map((c) => c.clause_id === clauseId ? { ...c, flagged: !current } : c))
+    try {
+      await updateClauseReview(comparisonId, clauseId, { flagged: !current })
+    } catch {
+      setClauses((prev) => prev && prev.map((c) => c.clause_id === clauseId ? { ...c, flagged: current } : c))
+    }
+  }
+
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-gray-500">Analyzing changes…</p></div>
   if (error) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><p className="text-red-600">{error}</p></div>
   if (!clauses) return null
@@ -78,11 +98,19 @@ function ComparisonPage() {
   const leftPane = clauses.filter((c) => c.original_index !== null).sort((a, b) => a.original_index! - b.original_index!)
   const rightPane = clauses.filter((c) => c.revised_index !== null).sort((a, b) => a.revised_index! - b.revised_index!)
 
+  const reviewedCount = changedList.filter((c) => c.reviewed).length
+  const reviewPct = changedList.length > 0 ? Math.round((reviewedCount / changedList.length) * 100) : 0
+
   return (
     <div className="h-screen flex bg-gray-50">
       {/* Sidebar */}
       <div className="w-64 border-r bg-white overflow-y-auto p-4 flex-shrink-0">
-        <p className="text-sm text-gray-500 mb-4">{changedList.length} changes found</p>
+        <div className="mb-4">
+          <p className="text-sm text-gray-500 mb-2">{reviewedCount} of {changedList.length} reviewed</p>
+          <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${reviewPct}%` }} />
+          </div>
+        </div>
         <div className="space-y-2">
           {changedList.map((c) => (
             <button
@@ -101,6 +129,8 @@ function ComparisonPage() {
                     {STATUS_BADGE[c.status]!.label}
                   </span>
                 )}
+                {c.reviewed && <span className="text-green-600 text-xs">✓</span>}
+                {c.flagged && <span className="text-red-600 text-xs">⚑</span>}
               </div>
               <p className="text-gray-700">{(c.original_text || c.revised_text || '').slice(0, 40)}…</p>
             </button>
@@ -119,19 +149,35 @@ function ComparisonPage() {
               className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-blue-400' : ''}`}
             >
               {c.ai_summary && (
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  {c.risk_level && (
-                    <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>
-                      {c.risk_level}
-                    </span>
-                  )}
-                  {STATUS_BADGE[c.status] && (
-                    <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>
-                      {STATUS_BADGE[c.status]!.label}
-                    </span>
-                  )}
-                  <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
-                </div>
+                <>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    {c.risk_level && (
+                      <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>
+                        {c.risk_level}
+                      </span>
+                    )}
+                    {STATUS_BADGE[c.status] && (
+                      <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>
+                        {STATUS_BADGE[c.status]!.label}
+                      </span>
+                    )}
+                    <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      onClick={() => toggleReviewed(c.clause_id, c.reviewed)}
+                      className={`text-xs px-2 py-1 rounded border whitespace-nowrap ${c.reviewed ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+                    >
+                      {c.reviewed ? '✓ Reviewed' : 'Mark reviewed'}
+                    </button>
+                    <button
+                      onClick={() => toggleFlagged(c.clause_id, c.flagged)}
+                      className={`text-xs px-2 py-1 rounded border whitespace-nowrap ${c.flagged ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+                    >
+                      {c.flagged ? '⚑ Flagged' : 'Flag'}
+                    </button>
+                  </div>
+                </>
               )}
               {c.original_text && <ClauseText text={c.original_text} />}
             </div>
@@ -147,19 +193,35 @@ function ComparisonPage() {
               className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-blue-400' : ''}`}
             >
               {c.ai_summary && (
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  {c.risk_level && (
-                    <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>
-                      {c.risk_level}
-                    </span>
-                  )}
-                  {STATUS_BADGE[c.status] && (
-                    <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>
-                      {STATUS_BADGE[c.status]!.label}
-                    </span>
-                  )}
-                  <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
-                </div>
+                <>
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    {c.risk_level && (
+                      <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>
+                        {c.risk_level}
+                      </span>
+                    )}
+                    {STATUS_BADGE[c.status] && (
+                      <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>
+                        {STATUS_BADGE[c.status]!.label}
+                      </span>
+                    )}
+                    <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <button
+                      onClick={() => toggleReviewed(c.clause_id, c.reviewed)}
+                      className={`text-xs px-2 py-1 rounded border whitespace-nowrap ${c.reviewed ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+                    >
+                      {c.reviewed ? '✓ Reviewed' : 'Mark reviewed'}
+                    </button>
+                    <button
+                      onClick={() => toggleFlagged(c.clause_id, c.flagged)}
+                      className={`text-xs px-2 py-1 rounded border whitespace-nowrap ${c.flagged ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+                    >
+                      {c.flagged ? '⚑ Flagged' : 'Flag'}
+                    </button>
+                  </div>
+                </>
               )}
               {c.revised_text && <ClauseText text={c.revised_text} />}
             </div>

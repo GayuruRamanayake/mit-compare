@@ -16,11 +16,6 @@ class Comparison(SQLModel, table=True):
 
 
 class Clause(SQLModel, table=True):
-    """
-    Cached analysis result for one clause of one comparison — computed once
-    by /analysis and stored here, so repeat visits (or a server restart)
-    don't need to re-run alignment or re-call Gemini for the same document.
-    """
     id: Optional[int] = Field(default=None, primary_key=True)
     comparison_id: str = Field(foreign_key="comparison.id", index=True)
 
@@ -34,3 +29,7 @@ class Clause(SQLModel, table=True):
     match_method: Optional[str] = None
     ai_summary: Optional[str] = None
     risk_level: Optional[str] = None
+
+    # review state — must be present here
+    reviewed: bool = False
+    flagged: bool = False

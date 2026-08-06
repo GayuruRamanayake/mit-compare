@@ -75,6 +75,31 @@ def get_clauses(comparison_id: str) -> Optional[list[dict]]:
                 "match_method": r.match_method,
                 "ai_summary": r.ai_summary,
                 "risk_level": r.risk_level,
+                "reviewed": r.reviewed,
+                "flagged": r.flagged,
             }
             for r in rows
         ]
+
+def update_clause_review(comparison_id: str, clause_id: str, reviewed: Optional[bool] = None, flagged: Optional[bool] = None) -> Optional[dict]:
+    with Session(engine) as session:
+        row = session.exec(
+            select(Clause).where(Clause.comparison_id == comparison_id, Clause.clause_id == clause_id)
+        ).first()
+        if row is None:
+            return None
+
+        if reviewed is not None:
+            row.reviewed = reviewed
+        if flagged is not None:
+            row.flagged = flagged
+
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+
+        return {
+            "clause_id": row.clause_id,
+            "reviewed": row.reviewed,
+            "flagged": row.flagged,
+        }
