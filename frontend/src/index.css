@@ -52,7 +52,7 @@ body {
 
 @import "tailwindcss";
 
-@theme {
+/* @theme {
   --color-void: #08090C;
   --color-panel: #101114;
   --color-crimson: #FF4D5E;
@@ -63,7 +63,23 @@ body {
   --font-display: "Space Grotesk", ui-sans-serif, sans-serif;
   --font-body: "Space Grotesk", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
+} */
+
+
+@theme {
+  --color-void: #08090C;
+  --color-panel: #101114;
+  --color-surface: #1A1B20;   /* ← new, lighter background just for ComparisonPage */
+  --color-crimson: #FF4D5E;
+  --color-teal: #45D9C4;
+  --color-amber: #F2B94A;
+  --color-mist: #8B93A6;
+
+  --font-display: "Space Grotesk", ui-sans-serif, sans-serif;
+  --font-body: "Space Grotesk", ui-sans-serif, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
+
 
 body {
   font-family: var(--font-body);
