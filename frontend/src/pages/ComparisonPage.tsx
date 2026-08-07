@@ -491,6 +491,9 @@ import { getComparisonAnalysis, updateClauseReview, ApiError, API_BASE_URL } fro
 import type { AlignedClause } from '../api/types'
 import ClauseText from '../components/comparison/ClauseText'
 
+
+
+
 const RISK_BORDER: Record<string, string> = {
   high: 'border-l-red-400 bg-red-50',
   medium: 'border-l-amber-400 bg-amber-50',
@@ -559,6 +562,31 @@ function ComparisonPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'clauses' | 'document'>('clauses')
   const { step, elapsed } = useLoadingProgress(isLoading)
+  const [fileType, setFileType] = useState<{ original: 'pdf' | 'docx' | null; revised: 'pdf' | 'docx' | null }>({ original: null, revised: null })
+
+
+
+  const [docPreviewError, setDocPreviewError] = useState<{ original: boolean; revised: boolean }>({ original: false, revised: false })
+
+  
+  useEffect(() => {
+    if (viewMode !== 'document' || !comparisonId) return
+
+    async function detectTypes() {
+      for (const side of ['original', 'revised'] as const) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/comparisons/${comparisonId}/file/${side}`, { method: 'HEAD' })
+          const contentType = res.headers.get('content-type') || ''
+          const type = contentType.includes('pdf') ? 'pdf' : contentType.includes('wordprocessingml') ? 'docx' : null
+          setFileType((prev) => ({ ...prev, [side]: type }))
+        } catch {
+          setFileType((prev) => ({ ...prev, [side]: null }))
+        }
+      }
+    }
+    detectTypes()
+  }, [viewMode, comparisonId])
+
 
   useEffect(() => {
     if (!comparisonId) return
@@ -758,19 +786,23 @@ function ComparisonPage() {
         <div className="flex-1 grid grid-cols-2 divide-x overflow-hidden">
           <div className="h-full flex flex-col">
             <p className="text-xs font-medium text-gray-400 px-4 py-2 bg-gray-50 border-b">ORIGINAL</p>
-            <iframe
-              src={`${API_BASE_URL}/comparisons/${comparisonId}/file/original`}
-              className="w-full flex-1 border-0"
-              title="Original document"
-            />
+            {fileType.original === 'pdf' ? (
+              <iframe src={`${API_BASE_URL}/comparisons/${comparisonId}/file/original`} className="w-full flex-1 border-0" title="Original document" />
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-gray-50">
+                <p className="text-sm text-gray-400 px-6 text-center">Document preview is only available for PDF uploads.</p>
+              </div>
+            )}
           </div>
           <div className="h-full flex flex-col">
             <p className="text-xs font-medium text-gray-400 px-4 py-2 bg-gray-50 border-b">REVISED</p>
-            <iframe
-              src={`${API_BASE_URL}/comparisons/${comparisonId}/file/revised`}
-              className="w-full flex-1 border-0"
-              title="Revised document"
-            />
+            {fileType.revised === 'pdf' ? (
+              <iframe src={`${API_BASE_URL}/comparisons/${comparisonId}/file/revised`} className="w-full flex-1 border-0" title="Revised document" />
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-gray-50">
+                <p className="text-sm text-gray-400 px-6 text-center">Document preview is only available for PDF uploads.</p>
+              </div>
+            )}
           </div>
         </div>
       )}

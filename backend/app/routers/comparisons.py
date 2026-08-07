@@ -288,7 +288,7 @@ async def patch_clause_review(comparison_id: str, clause_id: str, update: Clause
 
 
 
-@router.get("/{comparison_id}/file/{side}")
+@router.api_route("/{comparison_id}/file/{side}", methods=["GET", "HEAD"])
 async def get_original_file(comparison_id: str, side: str):
     record = get_comparison(comparison_id)
     if record is None:
