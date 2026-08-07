@@ -3,19 +3,41 @@ from docx import Document
 import pdfplumber
 
 
+# def parse_docx(file_bytes: bytes) -> list[str]:
+#     doc = Document(io.BytesIO(file_bytes))
+#     segments = []
+
+#     # walk the document body in order so tables stay near their
+#     # surrounding paragraphs instead of being appended at the end
+#     for element in doc.element.body:
+#         if element.tag.endswith('}p'):  # paragraph
+#             para = next((p for p in doc.paragraphs if p._element is element), None)
+#             if para and para.text.strip():
+#                 segments.append(para.text.strip())
+#         elif element.tag.endswith('}tbl'):  # table
+#             table = next((t for t in doc.tables if t._element is element), None)
+#             if table:
+#                 segments.append(_table_to_text(table.rows))
+
+#     return segments
+
+
 def parse_docx(file_bytes: bytes) -> list[str]:
     doc = Document(io.BytesIO(file_bytes))
     segments = []
 
-    # walk the document body in order so tables stay near their
-    # surrounding paragraphs instead of being appended at the end
+    # build O(1) lookup maps once, instead of scanning doc.paragraphs / doc.tables
+    # for every single element (which was O(n) per element = O(n²) overall)
+    para_by_element = {p._element: p for p in doc.paragraphs}
+    table_by_element = {t._element: t for t in doc.tables}
+
     for element in doc.element.body:
-        if element.tag.endswith('}p'):  # paragraph
-            para = next((p for p in doc.paragraphs if p._element is element), None)
+        if element.tag.endswith('}p'):
+            para = para_by_element.get(element)
             if para and para.text.strip():
                 segments.append(para.text.strip())
-        elif element.tag.endswith('}tbl'):  # table
-            table = next((t for t in doc.tables if t._element is element), None)
+        elif element.tag.endswith('}tbl'):
+            table = table_by_element.get(element)
             if table:
                 segments.append(_table_to_text(table.rows))
 
