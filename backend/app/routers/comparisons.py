@@ -148,7 +148,8 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/comparisons", tags=["comparisons"])
 
 ALLOWED_TYPES = {".docx", ".pdf"}
-MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+# MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 BATCH_SIZE = 10
 
 class ClauseReviewUpdate(BaseModel):
@@ -173,7 +174,7 @@ async def upload_documents(
     revised_bytes = await revised.read()
 
     if len(original_bytes) > MAX_FILE_SIZE or len(revised_bytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File exceeds 20MB limit")
+        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
 
     try:
         original_paragraphs = parse_document(original_bytes, original.filename)
