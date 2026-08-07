@@ -7,7 +7,7 @@ app = FastAPI(title="Contract Comparison API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["https://frontend-mit-compare-production.up.railway.app", "http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
