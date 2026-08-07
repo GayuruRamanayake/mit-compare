@@ -38,4 +38,6 @@ env/
 *.egg-info/
 .pytest_cache/
 
+# runtime data — not source, not committed
 backend/comparisons.db
+backend/uploads/

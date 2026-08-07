@@ -10,12 +10,12 @@ function ClauseText({ text }: ClauseTextProps) {
       .map((row) => row.split(' | '))
 
     return (
-      <table className="w-full text-sm border-collapse">
+      <table className="w-full font-doc text-[15px] border-collapse">
         <tbody>
           {rows.map((cells, i) => (
-            <tr key={i} className={i === 0 ? 'font-medium bg-gray-100' : 'border-t'}>
+            <tr key={i} className={i === 0 ? 'font-semibold bg-gray-50' : 'border-t border-gray-200'}>
               {cells.map((cell, j) => (
-                <td key={j} className="px-2 py-1">
+                <td key={j} className="px-3 py-2">
                   {cell}
                 </td>
               ))}
@@ -26,7 +26,7 @@ function ClauseText({ text }: ClauseTextProps) {
     )
   }
 
-  return <p className="text-sm">{text}</p>
+  return <p className="font-doc text-[15px] leading-[1.75] text-gray-900">{text}</p>
 }
 
 export default ClauseText

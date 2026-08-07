@@ -3,6 +3,26 @@ from sqlmodel import Session, select
 from app.database import engine
 from app.models import Comparison, Clause
 
+import os
+
+UPLOADS_DIR = os.path.join(os.path.dirname(os.environ.get("DB_PATH", "./comparisons.db")), "uploads")
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+
+def save_file(comparison_id: str, side: str, filename: str, file_bytes: bytes) -> str:
+    """side is 'original' or 'revised'. Returns the saved file's path."""
+    ext = filename.rsplit(".", 1)[-1].lower()
+    path = os.path.join(UPLOADS_DIR, f"{comparison_id}_{side}.{ext}")
+    with open(path, "wb") as f:
+        f.write(file_bytes)
+    return path
+
+
+def get_file_path(comparison_id: str, side: str, filename: str) -> str | None:
+    ext = filename.rsplit(".", 1)[-1].lower()
+    path = os.path.join(UPLOADS_DIR, f"{comparison_id}_{side}.{ext}")
+    return path if os.path.exists(path) else None
+
 
 def save_comparison(comparison_id: str, record: dict) -> None:
     with Session(engine) as session:
