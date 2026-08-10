@@ -132,6 +132,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 import uuid
 import asyncio
+import io
 
 from app.storage import save_comparison, get_comparison
 from app.services.parser import parse_document
@@ -147,6 +148,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 
 from fastapi.responses import FileResponse
+
+from fastapi.responses import StreamingResponse
+from app.services.report import generate_report
 
 router = APIRouter(prefix="/comparisons", tags=["comparisons"])
 
@@ -305,3 +309,24 @@ async def get_original_file(comparison_id: str, side: str):
         raise HTTPException(status_code=404, detail="File not found")
 
     return FileResponse(path, media_type="application/pdf")
+
+
+@router.get("/{comparison_id}/report")
+async def download_report(comparison_id: str):
+    record = get_comparison(comparison_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Comparison not found")
+
+    clauses = get_clauses(comparison_id)
+    if clauses is None:
+        raise HTTPException(status_code=400, detail="Analysis has not been run yet for this comparison")
+
+    report_bytes = generate_report(
+        comparison_id, record["original_filename"], record["revised_filename"], clauses
+    )
+
+    return StreamingResponse(
+        io.BytesIO(report_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="comparison_report_{comparison_id[:8]}.docx"'},
+    )

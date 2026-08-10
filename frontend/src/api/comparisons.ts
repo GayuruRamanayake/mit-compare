@@ -143,3 +143,8 @@ export async function updateClauseReview(
   }
   return res.json()
 }
+
+
+export function getReportDownloadUrl(comparisonId: string): string {
+  return `${API_BASE_URL}/comparisons/${comparisonId}/report`
+}

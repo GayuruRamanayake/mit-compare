@@ -263,13 +263,14 @@
 
 
 
+
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { href, useParams } from 'react-router-dom'
 // import { getComparisonAnalysis, updateClauseReview, ApiError, API_BASE_URL } from '../api/comparisons'
 import type { AlignedClause } from '../api/types'
 import ClauseText from '../components/comparison/ClauseText'
 
-import { getComparisonAnalysis, updateClauseReview, ApiError, API_BASE_URL } from '../api/comparisons'
+import { getComparisonAnalysis, updateClauseReview, ApiError, API_BASE_URL, getReportDownloadUrl } from '../api/comparisons'
 
 
 
@@ -456,6 +457,15 @@ function ComparisonPage() {
             Document
           </button>
         </div>
+        {comparisonId && (
+          <a
+            href={getReportDownloadUrl(comparisonId)}
+            download
+            className="block text-center text-sm py-2 mb-4 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            ⬇ Download report
+          </a>
+        )}
 
         <div className="mb-4">
           <p className="text-sm text-gray-500 mb-2">{reviewedCount} of {changedList.length} reviewed</p>
