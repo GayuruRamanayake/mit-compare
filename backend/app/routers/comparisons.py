@@ -140,14 +140,15 @@ from app.services.aligner import align_clauses
 from app.services.gemini_analysis import chunk_list, analyze_batch_throttled
 
 # from app.storage import save_comparison, get_comparison, save_clauses, get_clauses
-from app.storage import save_comparison, get_comparison, save_clauses, get_clauses, save_file, get_file_path
+# from app.storage import save_comparison, get_comparison, save_clauses, get_clauses, save_file, get_file_path
+from app.storage import save_comparison, get_comparison, save_clauses, get_clauses
 from pydantic import BaseModel
 from app.storage import update_clause_review
 from typing import Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
 
-from fastapi.responses import FileResponse
+# from fastapi.responses import FileResponse
 
 from fastapi.responses import StreamingResponse
 from app.services.report import generate_report
@@ -191,8 +192,8 @@ async def upload_documents(
 
     comparison_id = str(uuid.uuid4())
 
-    save_file(comparison_id, "original", original.filename, original_bytes)
-    save_file(comparison_id, "revised", revised.filename, revised_bytes)
+    # save_file(comparison_id, "original", original.filename, original_bytes)
+    # save_file(comparison_id, "revised", revised.filename, revised_bytes)
 
 
     save_comparison(comparison_id, {
@@ -292,23 +293,23 @@ async def patch_clause_review(comparison_id: str, clause_id: str, update: Clause
 
 
 
-@router.api_route("/{comparison_id}/file/{side}", methods=["GET", "HEAD"])
-async def get_original_file(comparison_id: str, side: str):
-    record = get_comparison(comparison_id)
-    if record is None:
-        raise HTTPException(status_code=404, detail="Comparison not found")
-    if side not in ("original", "revised"):
-        raise HTTPException(status_code=400, detail="side must be 'original' or 'revised'")
+# @router.api_route("/{comparison_id}/file/{side}", methods=["GET", "HEAD"])
+# async def get_original_file(comparison_id: str, side: str):
+#     record = get_comparison(comparison_id)
+#     if record is None:
+#         raise HTTPException(status_code=404, detail="Comparison not found")
+#     if side not in ("original", "revised"):
+#         raise HTTPException(status_code=400, detail="side must be 'original' or 'revised'")
 
-    filename = record["original_filename"] if side == "original" else record["revised_filename"]
-    if not filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=415, detail="Only PDF preview is currently supported")
+#     filename = record["original_filename"] if side == "original" else record["revised_filename"]
+#     if not filename.lower().endswith(".pdf"):
+#         raise HTTPException(status_code=415, detail="Only PDF preview is currently supported")
 
-    path = get_file_path(comparison_id, side, filename)
-    if path is None:
-        raise HTTPException(status_code=404, detail="File not found")
+#     path = get_file_path(comparison_id, side, filename)
+#     if path is None:
+#         raise HTTPException(status_code=404, detail="File not found")
 
-    return FileResponse(path, media_type="application/pdf")
+#     return FileResponse(path, media_type="application/pdf")
 
 
 @router.get("/{comparison_id}/report")
