@@ -112,7 +112,7 @@ MODEL_NAME = "gemini-3.1-flash-lite"
 
 # Free tier is ~15 requests/minute — stay well under it to leave room for
 # retries and normal latency variance.
-GEMINI_CONCURRENCY_LIMIT = 5
+GEMINI_CONCURRENCY_LIMIT = 3
 _semaphore = asyncio.Semaphore(GEMINI_CONCURRENCY_LIMIT)
 
 
