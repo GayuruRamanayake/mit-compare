@@ -3,26 +3,6 @@ from sqlmodel import Session, select
 from app.database import engine
 from app.models import Comparison, Clause
 
-# import os
-
-# UPLOADS_DIR = os.path.join(os.path.dirname(os.environ.get("DB_PATH", "./comparisons.db")), "uploads")
-# os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-
-# def save_file(comparison_id: str, side: str, filename: str, file_bytes: bytes) -> str:
-#     """side is 'original' or 'revised'. Returns the saved file's path."""
-#     ext = filename.rsplit(".", 1)[-1].lower()
-#     path = os.path.join(UPLOADS_DIR, f"{comparison_id}_{side}.{ext}")
-#     with open(path, "wb") as f:
-#         f.write(file_bytes)
-#     return path
-
-
-# def get_file_path(comparison_id: str, side: str, filename: str) -> str | None:
-#     ext = filename.rsplit(".", 1)[-1].lower()
-#     path = os.path.join(UPLOADS_DIR, f"{comparison_id}_{side}.{ext}")
-#     return path if os.path.exists(path) else None
-
 
 def save_comparison(comparison_id: str, record: dict) -> None:
     with Session(engine) as session:
@@ -53,9 +33,7 @@ def get_comparison(comparison_id: str) -> Optional[dict]:
 
 
 def save_clauses(comparison_id: str, clauses: list[dict]) -> None:
-    """Cache computed clause analysis so it doesn't need to be recomputed."""
     with Session(engine) as session:
-        # clear any previously cached clauses for this comparison first
         existing = session.exec(select(Clause).where(Clause.comparison_id == comparison_id)).all()
         for row in existing:
             session.delete(row)
@@ -73,12 +51,14 @@ def save_clauses(comparison_id: str, clauses: list[dict]) -> None:
                 match_method=c.get("match_method"),
                 ai_summary=c.get("ai_summary"),
                 risk_level=c.get("risk_level"),
+                authors_original=c.get("authors_original", []),
+                authors_revised=c.get("authors_revised", []),
+                comments_original=c.get("comments_original", []),
+                comments_revised=c.get("comments_revised", []),
             ))
         session.commit()
 
-
 def get_clauses(comparison_id: str) -> Optional[list[dict]]:
-    """Returns cached clauses if they exist, else None (caller should compute)."""
     with Session(engine) as session:
         rows = session.exec(select(Clause).where(Clause.comparison_id == comparison_id)).all()
         if not rows:
@@ -97,6 +77,10 @@ def get_clauses(comparison_id: str) -> Optional[list[dict]]:
                 "risk_level": r.risk_level,
                 "reviewed": r.reviewed,
                 "flagged": r.flagged,
+                "authors_original": r.authors_original,
+                "authors_revised": r.authors_revised,
+                "comments_original": r.comments_original,
+                "comments_revised": r.comments_revised,
             }
             for r in rows
         ]

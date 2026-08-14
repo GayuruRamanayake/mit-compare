@@ -1,7 +1,8 @@
 
+
 // import { useEffect, useState } from 'react'
 // import { useParams } from 'react-router-dom'
-// import { getComparisonAnalysis, updateClauseReview, ApiError } from '../api/comparisons'
+// import { getComparisonAnalysis, updateClauseReview, ApiError, getReportDownloadUrl } from '../api/comparisons'
 // import type { AlignedClause } from '../api/types'
 // import ClauseText from '../components/comparison/ClauseText'
 
@@ -11,7 +12,7 @@
 //   low: 'border-l-blue-400 bg-blue-50',
 //   cosmetic: 'border-l-gray-300 bg-gray-50',
 // }
-// const DEFAULT_BORDER = 'border-l-transparent'
+// const DEFAULT_BORDER = 'border-l-transparent bg-white'
 
 // const RISK_BADGE: Record<string, string> = {
 //   high: 'bg-red-100 text-red-700',
@@ -36,6 +37,8 @@
 //   'Analyzing changes with AI…',
 //   'Almost done…',
 // ]
+
+// type SidebarFilter = 'all' | 'flagged' | 'unreviewed' | 'high'
 
 // function getCardStyle(c: AlignedClause) {
 //   return c.risk_level ? RISK_BORDER[c.risk_level] : DEFAULT_BORDER
@@ -70,6 +73,7 @@
 //   const [error, setError] = useState<string | null>(null)
 //   const [isLoading, setIsLoading] = useState(true)
 //   const [activeId, setActiveId] = useState<string | null>(null)
+//   const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>('all')
 //   const { step, elapsed } = useLoadingProgress(isLoading)
 
 //   useEffect(() => {
@@ -138,13 +142,32 @@
 //   const rightPane = clauses.filter((c) => c.revised_index !== null).sort((a, b) => a.revised_index! - b.revised_index!)
 
 //   const reviewedCount = changedList.filter((c) => c.reviewed).length
+//   const flaggedCount = changedList.filter((c) => c.flagged).length
+//   const highRiskCount = changedList.filter((c) => c.risk_level === 'high').length
 //   const reviewPct = changedList.length > 0 ? Math.round((reviewedCount / changedList.length) * 100) : 0
+
+//   const sidebarList = changedList.filter((c) => {
+//     if (sidebarFilter === 'flagged') return c.flagged
+//     if (sidebarFilter === 'unreviewed') return !c.reviewed
+//     if (sidebarFilter === 'high') return c.risk_level === 'high'
+//     return true
+//   })
+
+//   const FILTERS: { key: SidebarFilter; label: string; count: number }[] = [
+//     { key: 'all', label: 'All', count: changedList.length },
+//     { key: 'flagged', label: 'Flagged', count: flaggedCount },
+//     { key: 'unreviewed', label: 'Unreviewed', count: changedList.length - reviewedCount },
+//     { key: 'high', label: 'High risk', count: highRiskCount },
+//   ]
 
 //   return (
 //     <div className="h-screen flex bg-gray-50">
 //       {/* Sidebar */}
 //       <div className="w-64 border-r bg-white overflow-y-auto p-4 flex-shrink-0">
-//         <h1 className="font-bold text-gray-800 text-base mb-4">MIT Compare</h1>
+//         <h1 className="font-bold text-gray-800 text-base mb-1">MIT Compare</h1>
+//         <p className="text-xs text-gray-400 mb-4">
+//           {changedList.length} changes &middot; {flaggedCount} flagged &middot; {highRiskCount} high risk
+//         </p>
 
 //         <div className="mb-4">
 //           <p className="text-sm text-gray-500 mb-2">{reviewedCount} of {changedList.length} reviewed</p>
@@ -153,8 +176,37 @@
 //           </div>
 //         </div>
 
+//         {comparisonId && (
+//           <a
+          
+//             href={getReportDownloadUrl(comparisonId)}
+//             download
+//             className="block text-center text-sm py-2 mb-4 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+//           >
+//             ⬇ Download report
+//           </a>
+//         )}
+
+//         <div className="grid grid-cols-2 gap-1 mb-4">
+//           {FILTERS.map((f) => (
+//             <button
+//               key={f.key}
+//               onClick={() => setSidebarFilter(f.key)}
+//               className={`text-xs px-2 py-1.5 rounded-md font-medium transition-colors flex items-center justify-center gap-1 ${
+//                 sidebarFilter === f.key ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+//               }`}
+//             >
+//               {f.label}
+//               <span className={sidebarFilter === f.key ? 'text-gray-300' : 'text-gray-400'}>{f.count}</span>
+//             </button>
+//           ))}
+//         </div>
+
 //         <div className="space-y-2">
-//           {changedList.map((c) => (
+//           {sidebarList.length === 0 && (
+//             <p className="text-sm text-gray-400 text-center py-6">Nothing here.</p>
+//           )}
+//           {sidebarList.map((c) => (
 //             <button
 //               key={c.clause_id}
 //               onClick={() => jumpTo(c.clause_id)}
@@ -184,7 +236,7 @@
 //             <div
 //               id={`left-${c.clause_id}`}
 //               key={c.clause_id}
-//               className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
+//               className={`border-l-4 px-6 py-5 mb-3 rounded-sm shadow-sm transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
 //             >
 //               {c.ai_summary && (
 //                 <>
@@ -220,7 +272,7 @@
 //             <div
 //               id={`right-${c.clause_id}`}
 //               key={c.clause_id}
-//               className={`border-l-4 px-3 py-2 mb-2 rounded transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
+//               className={`border-l-4 px-6 py-5 mb-3 rounded-sm shadow-sm transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
 //             >
 //               {c.ai_summary && (
 //                 <>
@@ -264,16 +316,25 @@
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // import { useEffect, useState } from 'react'
 // import { useParams } from 'react-router-dom'
-// // import { getComparisonAnalysis, updateClauseReview, ApiError, API_BASE_URL } from '../api/comparisons'
+// import { getComparisonAnalysis, updateClauseReview, ApiError, getReportDownloadUrl } from '../api/comparisons'
 // import type { AlignedClause } from '../api/types'
 // import ClauseText from '../components/comparison/ClauseText'
-
-// import { getComparisonAnalysis, updateClauseReview, ApiError, API_BASE_URL, getReportDownloadUrl } from '../api/comparisons'
-
-
-
 
 // const RISK_BORDER: Record<string, string> = {
 //   high: 'border-l-red-400 bg-red-50',
@@ -281,7 +342,6 @@
 //   low: 'border-l-blue-400 bg-blue-50',
 //   cosmetic: 'border-l-gray-300 bg-gray-50',
 // }
-// // const DEFAULT_BORDER = 'border-l-transparent'
 // const DEFAULT_BORDER = 'border-l-transparent bg-white'
 
 // const RISK_BADGE: Record<string, string> = {
@@ -307,6 +367,9 @@
 //   'Analyzing changes with AI…',
 //   'Almost done…',
 // ]
+
+// type SidebarFilter = 'all' | 'flagged' | 'unreviewed' | 'high'
+
 
 // function getCardStyle(c: AlignedClause) {
 //   return c.risk_level ? RISK_BORDER[c.risk_level] : DEFAULT_BORDER
@@ -341,33 +404,8 @@
 //   const [error, setError] = useState<string | null>(null)
 //   const [isLoading, setIsLoading] = useState(true)
 //   const [activeId, setActiveId] = useState<string | null>(null)
-//   const [viewMode, setViewMode] = useState<'clauses' | 'document'>('clauses')
+//   const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>('all')
 //   const { step, elapsed } = useLoadingProgress(isLoading)
-//   const [fileType, setFileType] = useState<{ original: 'pdf' | 'docx' | null; revised: 'pdf' | 'docx' | null }>({ original: null, revised: null })
-
-
-
-//   // const [docPreviewError, setDocPreviewError] = useState<{ original: boolean; revised: boolean }>({ original: false, revised: false })
-
-  
-//   useEffect(() => {
-//     if (viewMode !== 'document' || !comparisonId) return
-
-//     async function detectTypes() {
-//       for (const side of ['original', 'revised'] as const) {
-//         try {
-//           const res = await fetch(`${API_BASE_URL}/comparisons/${comparisonId}/file/${side}`, { method: 'HEAD' })
-//           const contentType = res.headers.get('content-type') || ''
-//           const type = contentType.includes('pdf') ? 'pdf' : contentType.includes('wordprocessingml') ? 'docx' : null
-//           setFileType((prev) => ({ ...prev, [side]: type }))
-//         } catch {
-//           setFileType((prev) => ({ ...prev, [side]: null }))
-//         }
-//       }
-//     }
-//     detectTypes()
-//   }, [viewMode, comparisonId])
-
 
 //   useEffect(() => {
 //     if (!comparisonId) return
@@ -435,37 +473,32 @@
 //   const rightPane = clauses.filter((c) => c.revised_index !== null).sort((a, b) => a.revised_index! - b.revised_index!)
 
 //   const reviewedCount = changedList.filter((c) => c.reviewed).length
+//   const flaggedCount = changedList.filter((c) => c.flagged).length
+//   const highRiskCount = changedList.filter((c) => c.risk_level === 'high').length
 //   const reviewPct = changedList.length > 0 ? Math.round((reviewedCount / changedList.length) * 100) : 0
+
+//   const sidebarList = changedList.filter((c) => {
+//     if (sidebarFilter === 'flagged') return c.flagged
+//     if (sidebarFilter === 'unreviewed') return !c.reviewed
+//     if (sidebarFilter === 'high') return c.risk_level === 'high'
+//     return true
+//   })
+
+//   const FILTERS: { key: SidebarFilter; label: string; count: number }[] = [
+//     { key: 'all', label: 'All', count: changedList.length },
+//     { key: 'flagged', label: 'Flagged', count: flaggedCount },
+//     { key: 'unreviewed', label: 'Unreviewed', count: changedList.length - reviewedCount },
+//     { key: 'high', label: 'High risk', count: highRiskCount },
+//   ]
 
 //   return (
 //     <div className="h-screen flex bg-gray-50">
 //       {/* Sidebar */}
 //       <div className="w-64 border-r bg-white overflow-y-auto p-4 flex-shrink-0">
-//         <h1 className="font-bold text-gray-800 text-base mb-4">MIT Compare</h1>
-
-//         <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1">
-//           <button
-//             onClick={() => setViewMode('clauses')}
-//             className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${viewMode === 'clauses' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
-//           >
-//             Clauses
-//           </button>
-//           <button
-//             onClick={() => setViewMode('document')}
-//             className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-colors ${viewMode === 'document' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500'}`}
-//           >
-//             Document
-//           </button>
-//         </div>
-//         {comparisonId && (
-//           <a
-//             href={getReportDownloadUrl(comparisonId)}
-//             download
-//             className="block text-center text-sm py-2 mb-4 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
-//           >
-//             ⬇ Download report
-//           </a>
-//         )}
+//         <h1 className="font-bold text-gray-800 text-base mb-1">MIT Compare</h1>
+//         <p className="text-xs text-gray-400 mb-4">
+//           {changedList.length} changes &middot; {flaggedCount} flagged &middot; {highRiskCount} high risk
+//         </p>
 
 //         <div className="mb-4">
 //           <p className="text-sm text-gray-500 mb-2">{reviewedCount} of {changedList.length} reviewed</p>
@@ -474,11 +507,40 @@
 //           </div>
 //         </div>
 
+//         {comparisonId && (
+//           <a
+          
+//             href={getReportDownloadUrl(comparisonId)}
+//             download
+//             className="block text-center text-sm py-2 mb-4 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+//           >
+//             ⬇ Download report
+//           </a>
+//         )}
+
+//         <div className="grid grid-cols-2 gap-1 mb-4">
+//           {FILTERS.map((f) => (
+//             <button
+//               key={f.key}
+//               onClick={() => setSidebarFilter(f.key)}
+//               className={`text-xs px-2 py-1.5 rounded-md font-medium transition-colors flex items-center justify-center gap-1 ${
+//                 sidebarFilter === f.key ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+//               }`}
+//             >
+//               {f.label}
+//               <span className={sidebarFilter === f.key ? 'text-gray-300' : 'text-gray-400'}>{f.count}</span>
+//             </button>
+//           ))}
+//         </div>
+
 //         <div className="space-y-2">
-//           {changedList.map((c) => (
+//           {sidebarList.length === 0 && (
+//             <p className="text-sm text-gray-400 text-center py-6">Nothing here.</p>
+//           )}
+//           {sidebarList.map((c) => (
 //             <button
 //               key={c.clause_id}
-//               onClick={() => { setViewMode('clauses'); jumpTo(c.clause_id) }}
+//               onClick={() => jumpTo(c.clause_id)}
 //               className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm"
 //             >
 //               <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -492,110 +554,107 @@
 //                 {c.flagged && <span className="text-red-600 text-xs">⚑</span>}
 //               </div>
 //               <p className="text-gray-700">{(c.original_text || c.revised_text || '').slice(0, 40)}…</p>
+//               {c.authors && c.authors.length > 0 && (
+//                 <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+//                   {c.authors.join(', ')}
+//                 </p>
+//               )}
 //             </button>
 //           ))}
 //         </div>
 //       </div>
 
-//       {/* Main content */}
-//       {viewMode === 'clauses' ? (
-//         <div className="flex-1 grid grid-cols-2 divide-x overflow-hidden">
-//           <div className="overflow-y-auto p-4">
-//             <p className="text-xs font-medium text-gray-400 mb-3 sticky top-0 bg-gray-50">ORIGINAL</p>
-//             {leftPane.map((c) => (
-//               <div
-//                 id={`left-${c.clause_id}`}
-//                 key={c.clause_id}
-//                 className={`border-l-4 px-6 py-5 mb-3 rounded-sm shadow-sm transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
-//               >
-//                 {c.ai_summary && (
-//                   <>
-//                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-//                       {c.risk_level && <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>{c.risk_level}</span>}
-//                       {STATUS_BADGE[c.status] && <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>{STATUS_BADGE[c.status]!.label}</span>}
-//                       <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
+//       {/* Two panes */}
+//       <div className="flex-1 grid grid-cols-2 divide-x overflow-hidden">
+//         <div className="overflow-y-auto p-4">
+//           <p className="text-xs font-medium text-gray-400 mb-3 sticky top-0 bg-gray-50">ORIGINAL</p>
+//           {leftPane.map((c) => (
+//             <div
+//               id={`left-${c.clause_id}`}
+//               key={c.clause_id}
+//               className={`border-l-4 px-6 py-5 mb-3 rounded-sm shadow-sm transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
+//             >
+//               {c.ai_summary && (
+//                 <>
+//                   <div className="flex items-center gap-2 mb-1 flex-wrap">
+//                     {c.risk_level && <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>{c.risk_level}</span>}
+//                     {STATUS_BADGE[c.status] && <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>{STATUS_BADGE[c.status]!.label}</span>}
+//                     <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
+//                   </div>
+//                   {c.authors && c.authors.length > 0 && (
+//                     <p className="text-xs text-gray-400 mb-2">
+//                       Edited by: {c.authors.join(', ')}
+//                     </p>
+//                   )}
+//                   {c.comments && c.comments.length > 0 && (
+//                     <div className="text-xs text-gray-500 mb-2 border-l-2 border-gray-200 pl-2 space-y-1">
+//                       {c.comments.map((cm, i) => (
+//                         <p key={i}>💬 <span className="font-medium">{cm.author}</span>: {cm.text}</p>
+//                       ))}
 //                     </div>
-//                     <div className="flex items-center gap-2 mb-2">
-//                       <button
-//                         onClick={() => toggleReviewed(c.clause_id, c.reviewed)}
-//                         className={`text-xs px-2 py-1 rounded border ${c.reviewed ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
-//                       >
-//                         {c.reviewed ? '✓ Reviewed' : 'Mark reviewed'}
-//                       </button>
-//                       <button
-//                         onClick={() => toggleFlagged(c.clause_id, c.flagged)}
-//                         className={`text-xs px-2 py-1 rounded border ${c.flagged ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
-//                       >
-//                         {c.flagged ? '⚑ Flagged' : 'Flag'}
-//                       </button>
-//                     </div>
-//                   </>
-//                 )}
-//                 {c.original_text && <ClauseText text={c.original_text} />}
-//               </div>
-//             ))}
-//           </div>
+//                   )}
+//                   <div className="flex items-center gap-2 mb-2">
+//                     <button
+//                       onClick={() => toggleReviewed(c.clause_id, c.reviewed)}
+//                       className={`text-xs px-2 py-1 rounded border ${c.reviewed ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+//                     >
+//                       {c.reviewed ? '✓ Reviewed' : 'Mark reviewed'}
+//                     </button>
+//                     <button
+//                       onClick={() => toggleFlagged(c.clause_id, c.flagged)}
+//                       className={`text-xs px-2 py-1 rounded border ${c.flagged ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+//                     >
+//                       {c.flagged ? '⚑ Flagged' : 'Flag'}
+//                     </button>
+//                   </div>
+//                 </>
+//               )}
+//               {c.original_text && <ClauseText text={c.original_text} />}
+//             </div>
+//           ))}
+//         </div>
 
-//           <div className="overflow-y-auto p-4">
-//             <p className="text-xs font-medium text-gray-400 mb-3 sticky top-0 bg-gray-50">REVISED</p>
-//             {rightPane.map((c) => (
-//               <div
-//                 id={`right-${c.clause_id}`}
-//                 key={c.clause_id}
-//                 className={`border-l-4 px-6 py-5 mb-3 rounded-sm shadow-sm transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
-//               >
-//                 {c.ai_summary && (
-//                   <>
-//                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-//                       {c.risk_level && <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>{c.risk_level}</span>}
-//                       {STATUS_BADGE[c.status] && <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>{STATUS_BADGE[c.status]!.label}</span>}
-//                       <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
-//                     </div>
-//                     <div className="flex items-center gap-2 mb-2">
-//                       <button
-//                         onClick={() => toggleReviewed(c.clause_id, c.reviewed)}
-//                         className={`text-xs px-2 py-1 rounded border ${c.reviewed ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
-//                       >
-//                         {c.reviewed ? '✓ Reviewed' : 'Mark reviewed'}
-//                       </button>
-//                       <button
-//                         onClick={() => toggleFlagged(c.clause_id, c.flagged)}
-//                         className={`text-xs px-2 py-1 rounded border ${c.flagged ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
-//                       >
-//                         {c.flagged ? '⚑ Flagged' : 'Flag'}
-//                       </button>
-//                     </div>
-//                   </>
-//                 )}
-//                 {c.revised_text && <ClauseText text={c.revised_text} />}
-//               </div>
-//             ))}
-//           </div>
+//         <div className="overflow-y-auto p-4">
+//           <p className="text-xs font-medium text-gray-400 mb-3 sticky top-0 bg-gray-50">REVISED</p>
+//           {rightPane.map((c) => (
+//             <div
+//               id={`right-${c.clause_id}`}
+//               key={c.clause_id}
+//               className={`border-l-4 px-6 py-5 mb-3 rounded-sm shadow-sm transition-colors ${getCardStyle(c)} ${activeId === c.clause_id ? 'ring-2 ring-orange-400' : ''}`}
+//             >
+//               {c.ai_summary && (
+//                 <>
+//                   <div className="flex items-center gap-2 mb-1 flex-wrap">
+//                     {c.risk_level && <span className={`${BADGE_BASE} ${RISK_BADGE[c.risk_level]}`}>{c.risk_level}</span>}
+//                     {STATUS_BADGE[c.status] && <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>{STATUS_BADGE[c.status]!.label}</span>}
+//                     <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
+//                   </div>
+//                   {c.authors && c.authors.length > 0 && (
+//                     <p className="text-xs text-gray-400 mb-2">
+//                       Edited by: {c.authors.join(', ')}
+//                     </p>
+//                   )}
+//                   <div className="flex items-center gap-2 mb-2">
+//                     <button
+//                       onClick={() => toggleReviewed(c.clause_id, c.reviewed)}
+//                       className={`text-xs px-2 py-1 rounded border ${c.reviewed ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+//                     >
+//                       {c.reviewed ? '✓ Reviewed' : 'Mark reviewed'}
+//                     </button>
+//                     <button
+//                       onClick={() => toggleFlagged(c.clause_id, c.flagged)}
+//                       className={`text-xs px-2 py-1 rounded border ${c.flagged ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-300 text-gray-500 hover:bg-gray-50'}`}
+//                     >
+//                       {c.flagged ? '⚑ Flagged' : 'Flag'}
+//                     </button>
+//                   </div>
+//                 </>
+//               )}
+//               {c.revised_text && <ClauseText text={c.revised_text} />}
+//             </div>
+//           ))}
 //         </div>
-//       ) : (
-//         <div className="flex-1 grid grid-cols-2 divide-x overflow-hidden">
-//           <div className="h-full flex flex-col">
-//             <p className="text-xs font-medium text-gray-400 px-4 py-2 bg-gray-50 border-b">ORIGINAL</p>
-//             {fileType.original === 'pdf' ? (
-//               <iframe src={`${API_BASE_URL}/comparisons/${comparisonId}/file/original`} className="w-full flex-1 border-0" title="Original document" />
-//             ) : (
-//               <div className="flex-1 flex items-center justify-center bg-gray-50">
-//                 <p className="text-sm text-gray-400 px-6 text-center">Document preview is only available for PDF uploads.</p>
-//               </div>
-//             )}
-//           </div>
-//           <div className="h-full flex flex-col">
-//             <p className="text-xs font-medium text-gray-400 px-4 py-2 bg-gray-50 border-b">REVISED</p>
-//             {fileType.revised === 'pdf' ? (
-//               <iframe src={`${API_BASE_URL}/comparisons/${comparisonId}/file/revised`} className="w-full flex-1 border-0" title="Revised document" />
-//             ) : (
-//               <div className="flex-1 flex items-center justify-center bg-gray-50">
-//                 <p className="text-sm text-gray-400 px-6 text-center">Document preview is only available for PDF uploads.</p>
-//               </div>
-//             )}
-//           </div>
-//         </div>
-//       )}
+//       </div>
 //     </div>
 //   )
 // }
@@ -607,10 +666,11 @@
 
 
 
+
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getComparisonAnalysis, updateClauseReview, ApiError, getReportDownloadUrl } from '../api/comparisons'
-import type { AlignedClause } from '../api/types'
+import type { AlignedClause, Comment } from '../api/types'
 import ClauseText from '../components/comparison/ClauseText'
 
 const RISK_BORDER: Record<string, string> = {
@@ -672,6 +732,28 @@ function useLoadingProgress(isLoading: boolean) {
   }, [isLoading])
 
   return { step: LOADING_STEPS[stepIndex], elapsed }
+}
+
+function TrackRecord({
+  authors,
+  comments,
+  label,
+}: {
+  authors: string[]
+  comments: Comment[]
+  label: string
+}) {
+  if (authors.length === 0 && comments.length === 0) return null
+
+  return (
+    <div className="text-xs text-gray-500 mb-2 border-l-2 border-gray-200 pl-2 space-y-1">
+      <p className="text-[10px] uppercase tracking-wide text-gray-400 font-medium">{label}</p>
+      {authors.length > 0 && <p>Edited by: {authors.join(', ')}</p>}
+      {comments.map((cm, i) => (
+        <p key={i}>💬 <span className="font-medium">{cm.author}</span>: {cm.text}</p>
+      ))}
+    </div>
+  )
 }
 
 function ComparisonPage() {
@@ -852,6 +934,8 @@ function ComparisonPage() {
                     {STATUS_BADGE[c.status] && <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>{STATUS_BADGE[c.status]!.label}</span>}
                     <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
                   </div>
+                  <TrackRecord authors={c.authors_original} comments={c.comments_original} label="Original" />
+                  <TrackRecord authors={c.authors_revised} comments={c.comments_revised} label="Revised" />
                   <div className="flex items-center gap-2 mb-2">
                     <button
                       onClick={() => toggleReviewed(c.clause_id, c.reviewed)}
@@ -888,6 +972,8 @@ function ComparisonPage() {
                     {STATUS_BADGE[c.status] && <span className={`${BADGE_BASE} ${STATUS_BADGE[c.status]!.style}`}>{STATUS_BADGE[c.status]!.label}</span>}
                     <p className="text-xs text-gray-500 italic">{c.ai_summary}</p>
                   </div>
+                  <TrackRecord authors={c.authors_original} comments={c.comments_original} label="Original" />
+                  <TrackRecord authors={c.authors_revised} comments={c.comments_revised} label="Revised" />
                   <div className="flex items-center gap-2 mb-2">
                     <button
                       onClick={() => toggleReviewed(c.clause_id, c.reviewed)}

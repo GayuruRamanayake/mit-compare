@@ -129,7 +129,8 @@
 
 
 
-from fastapi import APIRouter, UploadFile, File, HTTPException
+# from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 import uuid
 import asyncio
 import io
@@ -145,8 +146,8 @@ from app.storage import save_comparison, get_comparison, save_clauses, get_claus
 from pydantic import BaseModel
 from app.storage import update_clause_review
 from typing import Optional
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from pydantic import BaseModel
+
+
 
 # from fastapi.responses import FileResponse
 
@@ -174,6 +175,7 @@ def _validate_file(file: UploadFile) -> None:
 async def upload_documents(
     original: UploadFile = File(...),
     revised: UploadFile = File(...),
+    use_original_baseline: bool = Form(False),
 ):
     _validate_file(original)
     _validate_file(revised)
@@ -185,8 +187,9 @@ async def upload_documents(
         raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
 
     try:
-        original_paragraphs = parse_document(original_bytes, original.filename)
-        revised_paragraphs = parse_document(revised_bytes, revised.filename)
+        original_mode = "original" if use_original_baseline else "accepted"
+        original_paragraphs = parse_document(original_bytes, original.filename, mode=original_mode)
+        revised_paragraphs = parse_document(revised_bytes, revised.filename)  # always "accepted"
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

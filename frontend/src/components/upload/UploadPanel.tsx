@@ -93,6 +93,7 @@ interface UploadPanelProps {
 function UploadPanel({ onUploadSuccess }: UploadPanelProps) {
   const [original, setOriginal] = useState<File | null>(null)
   const [revised, setRevised] = useState<File | null>(null)
+  const [useOriginalBaseline, setUseOriginalBaseline] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -103,21 +104,34 @@ function UploadPanel({ onUploadSuccess }: UploadPanelProps) {
     setIsUploading(true)
     setError(null)
     try {
-      const result = await uploadDocuments(original, revised)
+      const result = await uploadDocuments(original, revised, useOriginalBaseline)
       onUploadSuccess(result.comparison_id)
     } catch (err) {
       setError(err instanceof ApiError ? `Upload failed: ${err.message}` : 'Could not reach the server. Is the backend running?')
     } finally {
       setIsUploading(false)
     }
-  }, [original, revised, onUploadSuccess])
+  }, [original, revised, useOriginalBaseline, onUploadSuccess])
 
   return (
     <div>
-      <div className="grid grid-cols-2 gap-4 mb-5">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <DocSlot label="Original" file={original} onSelect={setOriginal} />
         <DocSlot label="Revised" file={revised} onSelect={setRevised} />
       </div>
+
+      <label className="flex items-start gap-2 mb-4 text-sm text-gray-600 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={useOriginalBaseline}
+          onChange={(e) => setUseOriginalBaseline(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          The <strong>original</strong> document has tracked changes — compare from its
+          pre-edit state instead of its current edited state.
+        </span>
+      </label>
 
       {error && <p role="alert" className="text-sm text-red-600 mb-4">{error}</p>}
 

@@ -93,10 +93,12 @@ export class ApiError extends Error {
 export async function uploadDocuments(
   original: File,
   revised: File,
+  useOriginalBaseline: boolean = false,
 ): Promise<UploadResponse> {
   const formData = new FormData()
   formData.append('original', original)
   formData.append('revised', revised)
+  formData.append('use_original_baseline', String(useOriginalBaseline))
 
   const res = await fetch(`${API_BASE_URL}/comparisons/upload`, {
     method: 'POST',

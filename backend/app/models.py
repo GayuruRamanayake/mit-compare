@@ -29,7 +29,10 @@ class Clause(SQLModel, table=True):
     match_method: Optional[str] = None
     ai_summary: Optional[str] = None
     risk_level: Optional[str] = None
-
-    # review state — must be present here
     reviewed: bool = False
     flagged: bool = False
+
+    authors_original: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    authors_revised: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    comments_original: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    comments_revised: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
