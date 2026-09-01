@@ -10,7 +10,7 @@ app.add_middleware(
     allow_origins=[
         "https://frontend-mit-compare-production.up.railway.app",
         "http://localhost:5173",
-        "http://172.25.164.203",
+        "http://172.25.164.203:8080",
     ],
     allow_methods=["*"],
     allow_headers=["*"],
