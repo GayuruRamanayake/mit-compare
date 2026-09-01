@@ -1,6 +1,9 @@
+import os
+
 from sqlmodel import SQLModel, create_engine, Session
 
-DATABASE_URL = "sqlite:///./comparisons.db"
+DB_PATH = os.environ.get("DB_PATH", "./comparisons.db")
+DATABASE_URL = f"sqlite:///{DB_PATH}"
 
 # check_same_thread=False is required for SQLite + FastAPI's multi-request
 # handling; SQLite itself is still safe here since FastAPI's dev server
