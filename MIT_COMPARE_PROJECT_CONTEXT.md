@@ -1,5 +1,13 @@
 # MIT Compare — Project Context
 
+> **How to use this file**: This is the standing knowledge base for the
+> MIT Compare project — paste the whole file as the first message in a
+> new chat (Claude web or Claude Code) to resume work with full context,
+> instead of re-explaining the architecture from scratch. Keep it updated
+> as the source of truth: when you make an architectural decision, fix a
+> non-obvious bug, or change deployment config, add a note here in the
+> same session rather than letting it drift out of date.
+
 A contract/SOW comparison tool. Upload an "Original" and "Revised" document
 (.docx or .pdf), it aligns clauses, classifies risk with Gemini, and shows a
 two-pane review UI with author/comment attribution pulled from Word's
@@ -10,7 +18,9 @@ tracked-changes data.
 - **Backend**: FastAPI (Python), SQLite (SQLModel), Gemini 3.1 Flash-Lite,
   `sentence-transformers` (local embeddings, no API cost)
 - **Frontend**: React + Vite + TypeScript + Tailwind CSS
-- **Deployment**: Railway (two services: `backend/`, `frontend/`)
+- **Deployment**: Railway (two services: `backend/`, `frontend/`) **and**
+  Docker Compose (added 2026-09-01, for local/VM deployment) — see
+  "Deployment notes" below for both.
 
 ## Repo layout
 
@@ -166,8 +176,6 @@ instead of "draft → final".
 - `nixpacks.toml` NOT currently used (LibreOffice-based .docx→PDF preview
   was tried and deliberately abandoned for resource-cost reasons on
   Railway's free tier — see "storage was built then removed" above).
-- CORS origins hardcoded in `main.py` to include the deployed frontend URL
-  + `localhost:5173`.
 - `DB_PATH` env var points SQLite at a Railway Volume mount so it survives
   redeploys (`comparisons.db` otherwise resets on the ephemeral
   filesystem).
@@ -178,7 +186,41 @@ instead of "draft → final".
   or upgrade to Hobby plan.
 - `frontend/.env`'s `VITE_API_BASE_URL` is a BUILD-TIME value (baked into
   the JS bundle) — changing it requires a fresh build, not just a
-  restart.
+  restart. Same is true for the `VITE_API_BASE_URL` build arg in the
+  Docker path below.
+
+## Deployment notes (Docker Compose — added 2026-09-01)
+
+A second deployment path, for running on a local machine or a plain VM
+instead of Railway. Root-level `docker-compose.yml` defines two services:
+
+- **`backend`** — builds from `backend/Dockerfile` (`python:3.11-slim`).
+  Installs CPU-only `torch==2.13.0` from the PyTorch CPU wheel index
+  *before* the rest of `requirements.txt` (avoids pulling the huge CUDA
+  build). Sets `ENV DB_PATH=/data/comparisons.db`, exposes port 8000,
+  runs `uvicorn app.main:app --host 0.0.0.0 --port 8000`. Mounted volume
+  `backend_data:/data` persists the SQLite DB across container restarts
+  (same purpose as the Railway Volume). Reads `GEMINI_API_KEY` from the
+  environment (see `.env.example` — copy to `.env` and fill in).
+- **`frontend`** — multi-stage build: `node:22-alpine` builds the Vite
+  app with build-arg `VITE_API_BASE_URL` baked in, then copies
+  `dist/` into an `nginx:alpine` stage serving on port 80
+  (`frontend/nginx.conf`). Host port mapping is **8080:80** (changed
+  from an initial `80:80` — commit `b05a1b3`).
+- `.env.example` (repo root) documents the two required variables:
+  `GEMINI_API_KEY` and `VITE_API_BASE_URL=http://<vm-ip>:8000` — set the
+  VM/host IP here since the frontend calls the backend directly by URL,
+  not through nginx proxying.
+- Backend CORS (`backend/app/main.py`) currently hardcodes three allowed
+  origins: the Railway frontend URL, `http://localhost:5173` (Vite dev
+  server), and `http://172.25.164.203:8080` (a specific dev VM's Docker
+  frontend, port added in commit `aad1f38` to match the 8080 compose
+  mapping). **This VM IP is hardcoded, not templated** — deploying the
+  Docker Compose stack on a different host requires manually adding that
+  host's `http://<new-ip>:8080` to the `allow_origins` list in
+  `main.py`.
+- Run locally with `docker compose up --build` from the repo root after
+  populating `.env`.
 
 ## Design system (current, light theme)
 
@@ -206,3 +248,7 @@ instead of "draft → final".
 - A dedicated "raw comment/revision history" view, separate from
   clause-attached comments (discussed as an alternative to including
   paragraph-mark-deleted content in the main comparison).
+- Templating CORS `allow_origins` via an env var — it's currently a
+  hardcoded list in `main.py` covering exactly Railway + local Vite dev +
+  one specific dev VM's Docker frontend; every new deployment target
+  needs a manual code change (see "Deployment notes (Docker Compose)").
