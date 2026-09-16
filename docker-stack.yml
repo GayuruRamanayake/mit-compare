@@ -1,0 +1,42 @@
+version: "3.8"
+
+# Docker Swarm stack file for the shared company VM (see the MIT VM
+# Deployment Runbook). Unlike docker-compose.yml (used for Railway/local
+# Docker), this never publishes a port — common_nginx is the only container
+# facing the internet, and routes to these services by their Swarm-DNS
+# hostname over the external swarm-net overlay network.
+#
+# Images are built locally by scripts/build.sh and deployed with
+# `docker stack deploy --resolve-image never` — nothing is pushed to or
+# pulled from a registry.
+
+services:
+  backend:
+    image: mitcompare-backend:latest
+    hostname: mitcompare-backend
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - DB_PATH=/data/comparisons.db
+    volumes:
+      - backend_data:/data
+    networks:
+      - swarm-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  frontend:
+    image: mitcompare-frontend:latest
+    hostname: mitcompare-frontend
+    networks:
+      - swarm-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+networks:
+  swarm-net:
+    external: true
+
+volumes:
+  backend_data:

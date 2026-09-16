@@ -157,6 +157,20 @@ instead of "draft → final".
   (~1,800 clauses) took over a minute even after fixing the O(n²) parsing
   bug. Not yet optimized (candidate: pre-filter by length/first-words
   before running full `fuzz.ratio` on every pair).
+- **Semantic fallback pass uses greedy matching, not a globally optimal
+  assignment**: leftover `deleted`/`added` clauses (≥40 chars) are embedded
+  in bulk (`all-MiniLM-L6-v2`, local, no API cost), then a full
+  cosine-similarity matrix is computed between every deleted×added pair.
+  Matching then walks `deleted` clauses **in original-document order** and,
+  for each one, greedily claims whichever unclaimed `added` clause scores
+  highest (if ≥0.68). Once an `added` clause is claimed it's removed from
+  the pool — a later `deleted` clause can lose its actual best match to an
+  earlier one and fall back to a worse pairing, or none at all, even if it
+  scored higher for that same `added` clause. A confirmed match rewrites
+  the `deleted` clause in place (`status → "modified"`, `similarity →
+  best_sim * 100`, `match_method → "semantic"`) and the merged `added`
+  clause is dropped from the results. Would need a real bipartite
+  assignment (e.g. Hungarian algorithm) to fix; not built.
 - **No authentication** — anyone with the URL can upload/view/modify any
   comparison. Not built yet.
 - **PDF parsing has no tracked-changes/numbering/authors support** —
@@ -221,6 +235,66 @@ instead of Railway. Root-level `docker-compose.yml` defines two services:
   `main.py`.
 - Run locally with `docker compose up --build` from the repo root after
   populating `.env`.
+
+## Deployment notes (Company VM / Docker Swarm — added 2026-09-16)
+
+A third deployment path, onto the shared company VM (`ai`) behind its
+existing Docker Swarm + `common_nginx` reverse proxy, following the
+internal **MIT VM Deployment Runbook**. App name: `mitcompare`, domain:
+`mitcompare.test2.app` (confirmed from the live `nginx.conf` — note this
+one does **not** follow the runbook's generic `<app-name>.ai.test2.app`
+template; the actual per-app domain is whatever was chosen at DNS-setup
+time, decoupled from the Swarm-DNS service hostnames like
+`mitcompare-backend`, which do follow the template exactly).
+
+- **`docker-stack.yml`** (repo root) — Swarm stack file, distinct from
+  `docker-compose.yml`. No ports are published by either service —
+  `common_nginx` is the only container facing the internet, routing to
+  `mitcompare-backend`/`mitcompare-frontend` by Swarm-DNS hostname over the
+  external `swarm-net` overlay network. Each service declares its
+  `hostname:` explicitly (that's what makes the DNS resolution work). No
+  Postgres service — MIT Compare uses SQLite, same `backend_data` volume
+  pattern as the Docker Compose path.
+- **`scripts/build.sh`** — builds `mitcompare-backend:latest` and
+  `mitcompare-frontend:latest` locally (nothing pushed to a registry).
+  Hardcodes `PUBLIC_URL="https://mitcompare.test2.app"` as the frontend's
+  `VITE_API_BASE_URL` build arg — **not** read from `.env` here, unlike the
+  Docker Compose path, because frontend and backend share one hostname
+  under this nginx setup, so the API base URL is just the page's own
+  domain.
+- **`scripts/start.sh`** — sources `.env` explicitly (`docker stack deploy`
+  doesn't reliably auto-read it the way `docker compose` does), then runs
+  `docker stack deploy --resolve-image never -c docker-stack.yml mitcompare`.
+- **`deploy/nginx-server-block.conf.example`** — reference only, not read
+  by anything. The real config lives outside this repo, on the VM at
+  `/mit/common/nginx/nginx.conf`, and must be edited with `sudo tee` (never
+  an interactive editor — it's bind-mounted as a single file, and an
+  editor's save-by-rename swaps the inode out from under the running
+  container) followed by `docker service update --force common_nginx`.
+  **As confirmed from the live file (2026-09-16): a `mitcompare.test2.app`
+  server block already exists, but it only proxies `/` to
+  `mitcompare-frontend` — there is no backend location yet, so
+  `/comparisons` and `/health` currently don't route anywhere.** The
+  reference file documents the exact addition needed: a
+  `location ~ ^/(health|comparisons)(/|$)` block proxying to
+  `mitcompare-backend:8000` (matches `main.py`'s `/health` plus
+  `routers/comparisons.py`'s `/comparisons` prefix), plus a
+  `client_max_body_size 50m;` override *inside that server block* — the
+  file's global `client_max_body_size` (set once in the outer `http{}`
+  block) is `25m`, which is lower than this app's 50MB upload limit and
+  would silently reject anything in between before it ever reached the
+  backend's own check.
+- Backend CORS (`main.py`) has `https://mitcompare.test2.app` added to
+  `allow_origins`, though in practice the browser likely never sends a
+  cross-origin request on this path at all — frontend and backend are
+  served under the same hostname through `common_nginx`, so calls from the
+  page to `VITE_API_BASE_URL` are same-origin. Kept anyway for safety/
+  consistency with the other two origins already in that list.
+- To deploy: `bash scripts/build.sh && bash scripts/start.sh` from
+  `/mit/mitcompare` on the VM, after populating `.env` there (same two
+  vars as the Docker Compose path, though `VITE_API_BASE_URL` goes unused
+  on this path — see `scripts/build.sh` above). Redeploying a later change
+  is `git pull && bash scripts/build.sh && bash scripts/start.sh`.
 
 ## Design system (current, light theme)
 
